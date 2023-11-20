@@ -1,11 +1,11 @@
 from dataloaders.simple_dataloader import Simple
-from configs import sequential_roberta_config
+from configs import naive_roberta_config
 import os
 
 os.chdir("../")
 
-train = Simple("train", sequential_roberta_config)
-dev = Simple("dev", sequential_roberta_config)
+train = Simple("train", naive_roberta_config)
+dev = Simple("dev", naive_roberta_config)
 
 train_ids = set()
 dev_ids = set()

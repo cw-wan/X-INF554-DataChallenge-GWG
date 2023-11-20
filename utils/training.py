@@ -2,16 +2,16 @@ import torch
 from tqdm import tqdm
 import transformers
 from utils.common import write_log
-from modules.sequential_roberta import SequentialRoBERTa
-from configs import sequential_roberta_config
+from modules.naive_roberta import NaiveRoBERTa
+from configs import naive_roberta_config
 from dataloaders import simple_dataloader
 from sklearn.metrics import accuracy_score, f1_score
 
 
-def eval_sequential_roberta(model):
+def eval_naive_roberta(model):
     with torch.no_grad():
         model.eval()
-        eval_dataloader = simple_dataloader(subset="dev", config=sequential_roberta_config, batch_size=32,
+        eval_dataloader = simple_dataloader(subset="dev", config=naive_roberta_config, batch_size=32,
                                             shuffle=False)
         predictions = []
         truths = []
@@ -27,24 +27,24 @@ def eval_sequential_roberta(model):
     return acc, f1
 
 
-def train_sequential_roberta():
-    device = sequential_roberta_config.device
+def train_naive_roberta():
+    device = naive_roberta_config.device
     # load training parameters
-    batch_size = sequential_roberta_config.DownStream.batch_size
-    learning_rate = sequential_roberta_config.DownStream.learning_rate
-    warm_up = sequential_roberta_config.DownStream.warm_up
-    total_epoch = sequential_roberta_config.DownStream.total_epoch
-    decay = sequential_roberta_config.DownStream.decay
+    batch_size = naive_roberta_config.DownStream.batch_size
+    learning_rate = naive_roberta_config.DownStream.learning_rate
+    warm_up = naive_roberta_config.DownStream.warm_up
+    total_epoch = naive_roberta_config.DownStream.total_epoch
+    decay = naive_roberta_config.DownStream.decay
 
     # init model
-    model = SequentialRoBERTa()
+    model = NaiveRoBERTa()
     model.to(device)
 
     # init dataloader
-    train_dataloader = simple_dataloader(subset="train", config=sequential_roberta_config, batch_size=batch_size)
+    train_dataloader = simple_dataloader(subset="train", config=naive_roberta_config, batch_size=batch_size)
 
+    # weight decay
     no_decay = ["bias", "LayerNorm.weight"]
-
     optimizer_grouped_params = [
         {
             "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -66,8 +66,8 @@ def train_sequential_roberta():
 
     # train
     loss = 0
-    acc, f1 = eval_sequential_roberta(model)
-    print(acc, f1)
+    acc, f1 = eval_naive_roberta(model)
+    print("Before training, Accuracy {}, F1 Score {}".format(acc, f1))
     for epoch in range(1, total_epoch + 1):
         model.train()
         bar = tqdm(train_dataloader)
@@ -80,23 +80,23 @@ def train_sequential_roberta():
             optimizer.step()
             scheduler.step()
         # evaluate
-        acc, f1 = eval_sequential_roberta(model)
-        log = "Test Epoch {}, Accuracy {}, F1 Score {}".format(epoch, acc, f1)
+        acc, f1 = eval_naive_roberta(model)
+        log = "Epoch {}, Accuracy {}, F1 Score {}".format(epoch, acc, f1)
         print(log)
-        write_log(log, path='sequential_roberta_train.log')
+        write_log(log, path='log/naive_roberta_train.log')
         # save model
         model.save_model(epoch)
 
 
-def test_sequential_roberta(load_epoch):
-    device = sequential_roberta_config.device
+def test_naive_roberta(load_epoch):
+    device = naive_roberta_config.device
     # load trained model
-    model = SequentialRoBERTa()
+    model = NaiveRoBERTa()
     model.load_model(load_epoch)
     model.to(device)
     with torch.no_grad():
         model.eval()
-        test_dataloader = simple_dataloader(subset="test", config=sequential_roberta_config, batch_size=32,
+        test_dataloader = simple_dataloader(subset="test", config=naive_roberta_config, batch_size=32,
                                             shuffle=False)
         predictions = []
         utt_ids = []
@@ -108,7 +108,7 @@ def test_sequential_roberta(load_epoch):
         predictions = torch.cat(predictions, dim=-1).int().cpu().detach().numpy().tolist()
         predictions = [str(p) for p in predictions]
         # write to submission file
-        file = open("output/submission_sequential_roberta_epoch" + str(load_epoch) + ".csv", "w")
+        file = open("output/submission_naive_roberta_epoch" + str(load_epoch) + ".csv", "w")
         file.write("id,target_feature\n")
         for row in zip(utt_ids, predictions):
             file.write(",".join(row))
@@ -117,8 +117,8 @@ def test_sequential_roberta(load_epoch):
 
 
 MODELS = {
-    "sequential-roberta": {
-        "train": train_sequential_roberta,
-        "test": test_sequential_roberta
+    "naive-roberta": {
+        "train": train_naive_roberta,
+        "test": test_naive_roberta
     }
 }

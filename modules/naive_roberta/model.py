@@ -4,13 +4,13 @@ from torch import nn
 from modules.decoder import BaseClassifier
 from transformers import AutoModel
 from transformers import RobertaTokenizer
-from configs import sequential_roberta_config as base_config
+from configs import naive_roberta_config as base_config
 
 
-class SequentialRoBERTa(nn.Module):
+class NaiveRoBERTa(nn.Module):
     def __init__(self,
                  config=base_config):
-        super(SequentialRoBERTa, self).__init__()
+        super(NaiveRoBERTa, self).__init__()
 
         self.config = config
         self.device = self.config.device
@@ -44,12 +44,11 @@ class SequentialRoBERTa(nn.Module):
             return pred
 
     def save_model(self, epoch):
-        save_path = os.path.join(self.config.Path.save, "sequential_roberta_" + str(epoch) + ".pth")
-        print("Sequential Roberta saved at " + save_path)
+        save_path = os.path.join(self.config.Path.save, "naive_roberta_" + str(epoch) + ".pth")
+        print("Naive Roberta saved at " + save_path)
         torch.save(self.state_dict(), save_path)
 
     def load_model(self, load_checkpoint_epoch):
         checkpoint_path = os.path.join(self.config.Path.save,
-                                       'sequential_roberta_' + str(load_checkpoint_epoch) + '.pth')
+                                       'naive_roberta_' + str(load_checkpoint_epoch) + '.pth')
         self.load_state_dict(torch.load(checkpoint_path))
-
