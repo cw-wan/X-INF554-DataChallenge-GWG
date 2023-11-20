@@ -83,7 +83,7 @@ def train_naive_roberta():
         acc, f1 = eval_naive_roberta(model)
         log = "Epoch {}, Accuracy {}, F1 Score {}".format(epoch, acc, f1)
         print(log)
-        write_log(log, path='log/naive_roberta_train.log')
+        write_log(log, path='naive_roberta_train.log')
         # save model
         model.save_model(epoch)
 
