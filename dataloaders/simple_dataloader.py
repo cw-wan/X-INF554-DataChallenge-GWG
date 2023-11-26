@@ -54,7 +54,8 @@ class Simple(Dataset):
             train_positive_ids = positive_ids[:train_positive_cnt]
             train_negative_ids = negative_ids[:train_negative_cnt]
             # Augment
-            train_positive_ids = train_positive_ids + train_positive_ids[:]
+            if config.DownStream.resample:
+                train_positive_ids = train_positive_ids + train_positive_ids[:]
             dev_positive_ids = positive_ids[-dev_positive_cnt:]
             dev_negative_ids = negative_ids[-dev_negative_cnt:]
             if subset == "train":

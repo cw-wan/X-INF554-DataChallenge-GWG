@@ -1,27 +1,23 @@
-from dataloaders.simple_dataloader import Simple
+from dataloaders.complete_dataloader import complete_dataloader
 from configs import naive_roberta_config
+from tqdm import tqdm
 import os
+from modules import GCNRoBERTa
 
 os.chdir("../")
 
-train = Simple("train", naive_roberta_config)
-dev = Simple("dev", naive_roberta_config)
+train = complete_dataloader(subset="train", config=naive_roberta_config, batch_size=32)
+dev = complete_dataloader(subset="dev", config=naive_roberta_config, batch_size=32)
+test = complete_dataloader(subset="test", config=naive_roberta_config, batch_size=32)
 
-train_ids = set()
-dev_ids = set()
+bar = tqdm(dev)
 
-for i in range(len(train)):
-    train_ids.add(train[i]["id"])
+model = GCNRoBERTa()
+model.to(naive_roberta_config.device)
+model.eval()
 
-for j in range(len(dev)):
-    dev_ids.add(dev[j]["id"])
-
-print("train")
-print(len(list(train_ids)))
-print("dev")
-print(len(list(dev_ids)))
-
-common_ids = train_ids.intersection(dev_ids)
-
-print("common")
-print(len(list(common_ids)))
+for i, sample in enumerate(bar):
+    # print(sample["edge_index"].dtype)
+    loss, pred = model(sample)
+    print(loss, pred)
+    break

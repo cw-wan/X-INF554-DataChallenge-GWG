@@ -8,3 +8,4 @@
 ## Model list
 
 1. naive-roberta
+2. gcn-roberta
