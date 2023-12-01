@@ -12,6 +12,7 @@ class Path:
 class Model:
     bert_embsize = 768
 
+    gru = False
     gru_layers = 2
     gru_bidirect = True
 
@@ -23,7 +24,6 @@ class Model:
 
     dropout = 0.5
 
-    gru = False
     gcn = True
     speaker_embedding = False
 
@@ -33,7 +33,7 @@ class DownStream:
     output_size = 1  # 1 for binary classification
     batch_size = 32
     dev_train_ratio = 0.1
-    learning_rate = 1e-6
+    learning_rate = 3e-6
     warm_up = 1
     total_epoch = 20
     decay = 1e-3
