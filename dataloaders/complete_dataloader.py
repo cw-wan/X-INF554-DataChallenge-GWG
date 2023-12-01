@@ -170,7 +170,7 @@ class CustomSampler(Sampler):
                  uid_map,
                  pos_indices,
                  batch_size):
-        super().__init__()
+        # super().__init__()
         self.idx_list = all_idx
         self.dataset_len = len(all_idx)
         self.dialogues = dialogues
