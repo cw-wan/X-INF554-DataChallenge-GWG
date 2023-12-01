@@ -48,7 +48,8 @@ def train_gcn_roberta(config=gcn_roberta_config):
     model.to(device)
 
     # init dataloader
-    train_dataloader = complete_dataloader(subset="train", config=config, batch_size=batch_size)
+    train_dataloader = complete_dataloader(subset="train", config=config, batch_size=batch_size,
+                                           custom_sampler=config.DownStream.custom_sampler)
 
     # weight decay
     no_decay = ["bias", "LayerNorm.weight"]

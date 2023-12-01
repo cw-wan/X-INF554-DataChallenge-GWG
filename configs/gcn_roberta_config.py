@@ -29,6 +29,7 @@ class Model:
 
 
 class DownStream:
+    custom_sampler = True
     seed = 64
     output_size = 1  # 1 for binary classification
     batch_size = 32
