@@ -103,6 +103,7 @@ class CompleteDataset(Dataset):
         self.data = []
         self.all_idx = []
         self.positive_idx = []
+        self.negative_idx = []
         self.uid2idx = {}
 
         if split in ["train", "dev"]:
@@ -128,6 +129,8 @@ class CompleteDataset(Dataset):
                     self.all_idx.append(idx)
                     if utt["label"] == 1:
                         self.positive_idx.append((idx, utt["id"]))
+                    else:
+                        self.negative_idx.append((idx, utt["id"]))
             else:
                 self.data = self.data[-dev_cnt:]
         elif split == "test":
@@ -150,6 +153,9 @@ class CompleteDataset(Dataset):
     def pos_indices(self):
         return self.positive_idx
 
+    def neg_indices(self):
+        return self.negative_idx
+
     def adj_mat(self):
         return self.dialogues
 
@@ -169,6 +175,7 @@ class CustomSampler(Sampler):
                  dialogues,
                  uid_map,
                  pos_indices,
+                 neg_indices,
                  batch_size):
         # super().__init__()
         self.idx_list = all_idx
@@ -176,12 +183,21 @@ class CustomSampler(Sampler):
         self.dialogues = dialogues
         self.uid_map = uid_map
         self.pos_indices = pos_indices
+        self.neg_indices = neg_indices
         self.batch_size = batch_size
 
     def __iter__(self):
+        # sampling roots for width-first search
+        # half positive roots and half negative roots
         random.shuffle(self.pos_indices)
+        random.shuffle(self.neg_indices)
+        root_cnt = self.dataset_len // self.batch_size
+        roots = []
+        roots.extend(self.pos_indices[:root_cnt // 2])
+        roots.extend(self.neg_indices[:root_cnt - root_cnt // 2])
+        random.shuffle(roots)
         batch = []
-        for idx, utt_id in self.pos_indices[:self.dataset_len // self.batch_size]:
+        for idx, utt_id in roots:
             dialogue_id, n = utt_id.split("_")
             mat = self.dialogues[dialogue_id]["adj_matrix"]
             n = int(n)
@@ -210,6 +226,7 @@ def complete_dataloader(subset, config, batch_size, custom_sampler=False):
                                 dialogues=dataset.adj_mat(),
                                 uid_map=dataset.uid_map(),
                                 pos_indices=dataset.pos_indices(),
+                                neg_indices=dataset.neg_indices(),
                                 batch_size=batch_size)
         return DataLoader(dataset, batch_size=None, sampler=sampler, collate_fn=collate_fn)
     else:

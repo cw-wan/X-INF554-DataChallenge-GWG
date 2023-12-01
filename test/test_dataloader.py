@@ -18,8 +18,6 @@ allcnt = 0
 for i, sample in enumerate(bar):
     allcnt += len(sample["id"])
     positive += sum(sample["label"])
-    if i == 1:
-        print(sample["id"])
     """
     nodes = []
     edges = []
