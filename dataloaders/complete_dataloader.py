@@ -47,7 +47,7 @@ def read_dialogues(path):
                         uid1 = dialogue_id + "_" + u1
                         uid2 = dialogue_id + "_" + u2
                         utterances[uid1]["adj_list"].append((uid2, MAP_RELATIONS[r]))
-                        utterances[uid2]["adj_list"].append((uid1, MAP_RELATIONS[r]))
+                        # utterances[uid2]["adj_list"].append((uid1, MAP_RELATIONS[r]))
     return utterances
 
 
@@ -64,6 +64,7 @@ def collate_fn(data):
                 edges.append([uid2idx[d["id"]], uid2idx[adj[0]]])
                 edge_types.append(adj[1])
     return {
+        "id": [d["id"] for d in data],
         "text": [d["text"] for d in data],
         "speaker": torch.tensor([d["speaker"] for d in data]),
         "label": torch.tensor([d["label"] for d in data]),

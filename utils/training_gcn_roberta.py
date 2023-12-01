@@ -8,22 +8,45 @@ from dataloaders.complete_dataloader import complete_dataloader
 from sklearn.metrics import accuracy_score, f1_score
 
 
+def f1_score_macro(y_true, y_pred):
+    y_pred = torch.mul(torch.sub(y_pred, torch.ones_like(y_pred), alpha=0.5), 2)
+    y_pred = torch.pow(y_pred, 3)
+    y_pred = torch.add(torch.mul(y_pred, 0.5), torch.ones_like(y_pred), alpha=0.5)
+
+    tp = torch.sum(y_pred * y_true)
+    tn = torch.sum((1 - y_pred) * (1 - y_true))
+    fp = torch.sum(y_pred * (1 - y_true))
+    fn = torch.sum((1 - y_pred) * y_true)
+
+    p = tp / (tp + fp + 1e-10)
+    r = tp / (tp + fn + 1e-10)
+
+    f1 = 2 * p * r / (p + r + 1e-10)
+    f1 = torch.where(torch.isnan(f1), torch.zeros_like(f1), f1)
+    return torch.mean(f1)
+
+
 def eval_gcn_roberta(model):
     with torch.no_grad():
         model.eval()
         eval_dataset = complete_dataloader(subset="dev", config=gcn_roberta_config, batch_size=32)
+        # eval_dataset = simple_dataloader(subset="dev", config=gcn_roberta_config, batch_size=32, shuffle=False)
+        float_pred = []
         predictions = []
         truths = []
         bar = tqdm(eval_dataset)
         for index, sample in enumerate(bar):
             truths.append(sample["label"])
             pred = model(sample, return_loss=False)
+            float_pred.append(pred)
             predictions.append(torch.round(pred))
+        f1_macro = f1_score_macro(torch.cat(truths, dim=-1).cpu().detach(),
+                                  torch.cat(float_pred, dim=-1).cpu().detach())
         predictions = torch.cat(predictions, dim=-1).int().cpu().detach().numpy()
         truths = torch.cat(truths, dim=-1).detach().numpy()
         acc = accuracy_score(truths, predictions)
         f1 = f1_score(truths, predictions)
-    return acc, f1
+    return acc, f1, f1_macro
 
 
 def train_gcn_roberta(config=gcn_roberta_config):
@@ -41,6 +64,7 @@ def train_gcn_roberta(config=gcn_roberta_config):
 
     # init dataloader
     train_dataloader = complete_dataloader(subset="train", config=config, batch_size=batch_size)
+    # train_dataloader = simple_dataloader(subset="train", config=config, batch_size=batch_size, shuffle=True)
 
     # weight decay
     no_decay = ["bias", "LayerNorm.weight"]
@@ -65,23 +89,26 @@ def train_gcn_roberta(config=gcn_roberta_config):
                                                                               train_dataloader), )
 
     # train
-    loss = 0
-    acc, f1 = eval_gcn_roberta(model)
-    print("Before training, Accuracy {}, F1 Score {}".format(acc, f1))
+    pred_loss = torch.tensor(0)
+    contrastive_loss = torch.tensor(0)
+    loss = torch.tensor(0)
+    acc, f1, f1_macro = eval_gcn_roberta(model)
+    print("Before training, Accuracy {}, F1 Score {}, F1 Macro Score {}".format(acc, f1, f1_macro))
     for epoch in range(1, total_epoch + 1):
         model.train()
         bar = tqdm(train_dataloader)
         for index, sample, in enumerate(bar):
-            bar.set_description("Epoch:%d|Loss:%s" % (epoch, loss))
-            loss, pred = model(sample)
+            bar.set_description("Epoch:%d|Loss:%s|PredLoss:%s|ContLoss:%s" % (
+                epoch, loss.item(), pred_loss.item(), contrastive_loss.item()))
+            loss, pred_loss, contrastive_loss, pred = model(sample)
             # back prop
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             scheduler.step()
         # evaluate
-        acc, f1 = eval_gcn_roberta(model)
-        log = "Epoch {}, Accuracy {}, F1 Score {}".format(epoch, acc, f1)
+        acc, f1, f1_macro = eval_gcn_roberta(model)
+        log = "Epoch {}, Accuracy {}, F1 Score {}, F1 Macro Score {}".format(epoch, acc, f1, f1_macro)
         print(log)
         write_log(log, path='gcn_roberta_train.log')
         # save model
@@ -97,13 +124,13 @@ def test_gcn_roberta(load_epoch, config=gcn_roberta_config):
     with torch.no_grad():
         model.eval()
         test_dataloader = complete_dataloader(subset="test", config=config, batch_size=32)
+        # test_dataloader = simple_dataloader(subset="test", config=config, batch_size=32, shuffle=False)
         predictions = []
         utt_ids = []
         bar = tqdm(test_dataloader)
         for index, sample in enumerate(bar):
             pred = model(sample, return_loss=False)
-            for i in range(sample["size"]):
-                utt_ids.append(sample["id"] + "_" + str(i))
+            utt_ids += sample["id"]
             predictions.append(torch.round(pred))
         predictions = torch.cat(predictions, dim=-1).int().cpu().detach().numpy().tolist()
         predictions = [str(p) for p in predictions]

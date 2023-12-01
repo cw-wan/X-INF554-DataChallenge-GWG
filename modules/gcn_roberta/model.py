@@ -1,11 +1,30 @@
 from torch import nn
 import torch
 import os
-from torch_geometric.nn.conv import RGCNConv, GraphConv
+from torch_geometric.nn.conv import RGCNConv, GraphConv, RGATConv, GATConv
 from transformers import AutoModel
 from transformers import RobertaTokenizer
 from modules.decoder import BaseClassifier
 from configs import gcn_roberta_config as base_config
+from pytorch_metric_learning.losses import NTXentLoss
+
+
+def f1_loss(y_pred, y_true):
+    y_pred = torch.mul(torch.sub(y_pred, torch.ones_like(y_pred), alpha=0.5), 2)
+    y_pred = torch.pow(y_pred, 3)
+    y_pred = torch.add(torch.mul(y_pred, 0.5), torch.ones_like(y_pred), alpha=0.5)
+
+    tp = torch.sum(y_pred * y_true)
+    tn = torch.sum((1 - y_pred) * (1 - y_true))
+    fp = torch.sum(y_pred * (1 - y_true))
+    fn = torch.sum((1 - y_pred) * y_true)
+
+    p = tp / (tp + fp + 1e-10)
+    r = tp / (tp + fn + 1e-10)
+
+    f1 = 2 * p * r / (p + r + 1e-10)
+    f1 = torch.where(torch.isnan(f1), torch.zeros_like(f1), f1)
+    return 1 - torch.mean(f1)
 
 
 class GCNRoBERTa(nn.Module):
@@ -45,19 +64,37 @@ class GCNRoBERTa(nn.Module):
                 out_channels=self.embedding_size,
                 num_relations=self.config.Model.n_relations,
                 num_bases=self.config.Model.rgcn_reg_basis)
-        self.conv2 = GraphConv(
-            in_channels=self.embedding_size,
-            out_channels=self.embedding_size)
+            self.conv2 = GraphConv(
+                in_channels=self.embedding_size,
+                out_channels=self.embedding_size)
+
+        # GAT
+        if self.config.Model.gat:
+            self.conv = GATConv(
+                in_channels=self.embedding_size,
+                out_channels=int(self.embedding_size / self.config.Model.gat_heads),
+                heads=self.config.Model.gat_heads,
+                concat=True,
+                dropout=0.5
+            )
 
         # MLP Classifier
         hidden_size = [int(self.embedding_size / 4), ]
-        self.decoder = BaseClassifier(
-            input_size=self.embedding_size,
-            hidden_size=hidden_size,
-            output_size=self.config.DownStream.output_size)
+        if self.config.Model.gcn:
+            self.decoder = BaseClassifier(
+                input_size=self.embedding_size,
+                hidden_size=hidden_size,
+                output_size=self.config.DownStream.output_size)
+        else:
+            self.decoder = BaseClassifier(
+                input_size=self.embedding_size,
+                hidden_size=hidden_size,
+                output_size=self.config.DownStream.output_size)
 
         # Loss
-        self.criterion = nn.BCELoss()
+        # self.criterion = nn.BCELoss()
+        self.criterion = f1_loss
+        self.info_nce = NTXentLoss(temperature=0.5)
 
     def encode(self, texts):
         tokens = self.tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
@@ -82,14 +119,19 @@ class GCNRoBERTa(nn.Module):
             utt_emb, _ = self.gru(utt_emb)
         # compute graph embeddings
         if self.config.Model.gcn:
-            utt_emb = self.conv1(x=utt_emb, edge_index=edge_index, edge_type=edge_type)
-            utt_emb = self.conv2(x=utt_emb, edge_index=edge_index)
+            utt_emb_1 = self.conv1(utt_emb, edge_index, edge_type)
+            utt_emb_2 = self.conv2(x=utt_emb_1, edge_index=edge_index)
+            utt_emb = utt_emb_2
+        if self.config.Model.gat:
+            utt_emb = self.conv(utt_emb, edge_index)
         # make classification based on utterance embeddings
         pred = self.decoder(utt_emb).squeeze(1)
         if return_loss:
             labels = sample["label"].to(self.device)
-            loss = self.criterion(pred.float(), labels.float())
-            return loss, pred
+            pred_loss = self.criterion(pred.float(), labels.float())
+            contrastive_loss = self.info_nce(embeddings=utt_emb, labels=labels)
+            loss = pred_loss + contrastive_loss * 0.5
+            return loss, pred_loss, contrastive_loss, pred
         else:
             return pred
 
