@@ -1,3 +1,4 @@
+import os
 import torch
 from tqdm import tqdm
 import transformers
@@ -117,6 +118,8 @@ def test_gcn_roberta(load_epoch, config=gcn_roberta_config):
         predictions = torch.cat(predictions, dim=-1).int().cpu().detach().numpy().tolist()
         predictions = [str(p) for p in predictions]
         # write to submission file
+        if not os.path.exists("output/"):
+            os.mkdir("output/")
         file = open("output/submission_gcn_roberta_epoch" + str(load_epoch) + ".csv", "w")
         file.write("id,target_feature\n")
         for row in zip(utt_ids, predictions):
