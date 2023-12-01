@@ -1,4 +1,5 @@
 from torch import nn
+import torch.nn.functional as F
 import torch
 import os
 from torch_geometric.nn.conv import RGCNConv, GraphConv
@@ -59,7 +60,6 @@ class GCNRoBERTa(nn.Module):
             output_size=self.config.DownStream.output_size)
 
         # Loss
-        # self.criterion = nn.BCELoss()
         self.criterion = f1_loss
         self.info_nce = NTXentLoss(temperature=self.config.Model.temperature)
 
@@ -86,9 +86,10 @@ class GCNRoBERTa(nn.Module):
             utt_emb, _ = self.gru(utt_emb)
         # compute graph embeddings
         if self.config.Model.gcn:
-            utt_emb_1 = self.conv1(utt_emb, edge_index, edge_type)
-            utt_emb_2 = self.conv2(x=utt_emb_1, edge_index=edge_index)
-            utt_emb = utt_emb_2
+            utt_emb = self.conv1(utt_emb, edge_index, edge_type)
+            utt_emb = F.relu(utt_emb)
+            utt_emb = F.dropout(utt_emb, training=self.training)
+            utt_emb = self.conv2(x=utt_emb, edge_index=edge_index)
         # make classification based on utterance embeddings
         pred = self.decoder(utt_emb).squeeze(1)
         if return_loss:
