@@ -10,10 +10,10 @@ from sklearn.metrics import accuracy_score, f1_score
 from utils.training_utils import f1_score_macro, seed_everything
 
 
-def eval_gcn_roberta(model):
+def eval_gcn_roberta(model, config):
     with torch.no_grad():
         model.eval()
-        eval_dataset = complete_dataloader(subset="dev", config=gcn_roberta_config, batch_size=32)
+        eval_dataset = complete_dataloader(subset="dev", config=config, batch_size=config.DownStream.batch_size)
         float_pred = []
         predictions = []
         truths = []
@@ -77,7 +77,7 @@ def train_gcn_roberta(config=gcn_roberta_config):
     pred_loss = torch.tensor(0)
     contrastive_loss = torch.tensor(0)
     loss = torch.tensor(0)
-    acc, f1, f1_macro = eval_gcn_roberta(model)
+    acc, f1, f1_macro = eval_gcn_roberta(model, config)
     print("Before training, Accuracy {}, F1 Score {}, F1 Macro Score {}".format(acc, f1, f1_macro))
     for epoch in range(1, total_epoch + 1):
         model.train()
@@ -92,7 +92,7 @@ def train_gcn_roberta(config=gcn_roberta_config):
             optimizer.step()
             scheduler.step()
         # evaluate
-        acc, f1, f1_macro = eval_gcn_roberta(model)
+        acc, f1, f1_macro = eval_gcn_roberta(model, config)
         log = "Epoch {}, Accuracy {}, F1 Score {}, F1 Macro Score {}".format(epoch, acc, f1, f1_macro)
         print(log)
         write_log(log, path='gcn_roberta_train.log')
@@ -108,7 +108,7 @@ def test_gcn_roberta(load_epoch, config=gcn_roberta_config):
     model.to(device)
     with torch.no_grad():
         model.eval()
-        test_dataloader = complete_dataloader(subset="test", config=config, batch_size=32)
+        test_dataloader = complete_dataloader(subset="test", config=config, batch_size=config.DownStream.batch_size)
         predictions = []
         utt_ids = []
         bar = tqdm(test_dataloader)
