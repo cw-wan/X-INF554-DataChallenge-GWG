@@ -2,8 +2,9 @@
 
 ## How to use:
 
-1. Download [RoBERTa](https://huggingface.co/roberta-base) to `modules/roberta-base`. 
-2. For training and testing, run command `python main.py -s [model] -m [mode] [-e [checkpoint_epoch]]`.
+1. Download data to `data/`
+2. Download [RoBERTa](https://huggingface.co/roberta-base) to `modules/roberta-base`. 
+3. For training and testing, run command `python main.py -s [model] -m [mode] [-e [checkpoint_epoch]]`.
 
 ## Model list
 

@@ -10,27 +10,26 @@ class Path:
 
 
 class Model:
-    roberta_embedding_size = 768
+    bert_embsize = 768
 
-    gru_hidden_size = 768
     gru_layers = 2
+    gru_bidirect = True
 
     n_speakers = 4
     n_relations = 16
     rgcn_reg_basis = 30
 
+    temperature = 0.5
+
     dropout = 0.5
 
     gru = False
     gcn = True
-    gat = False
-    gat_heads = 4
     speaker_embedding = False
-    bidirectional_gru = True
 
 
 class DownStream:
-    resample = False
+    seed = 64
     output_size = 1  # 1 for binary classification
     batch_size = 32
     dev_train_ratio = 0.1

@@ -6,31 +6,13 @@ from modules import GCNRoBERTa
 from configs import gcn_roberta_config
 from dataloaders.complete_dataloader import complete_dataloader
 from sklearn.metrics import accuracy_score, f1_score
-
-
-def f1_score_macro(y_true, y_pred):
-    y_pred = torch.mul(torch.sub(y_pred, torch.ones_like(y_pred), alpha=0.5), 2)
-    y_pred = torch.pow(y_pred, 3)
-    y_pred = torch.add(torch.mul(y_pred, 0.5), torch.ones_like(y_pred), alpha=0.5)
-
-    tp = torch.sum(y_pred * y_true)
-    tn = torch.sum((1 - y_pred) * (1 - y_true))
-    fp = torch.sum(y_pred * (1 - y_true))
-    fn = torch.sum((1 - y_pred) * y_true)
-
-    p = tp / (tp + fp + 1e-10)
-    r = tp / (tp + fn + 1e-10)
-
-    f1 = 2 * p * r / (p + r + 1e-10)
-    f1 = torch.where(torch.isnan(f1), torch.zeros_like(f1), f1)
-    return torch.mean(f1)
+from utils.training_utils import f1_score_macro, seed_everything
 
 
 def eval_gcn_roberta(model):
     with torch.no_grad():
         model.eval()
         eval_dataset = complete_dataloader(subset="dev", config=gcn_roberta_config, batch_size=32)
-        # eval_dataset = simple_dataloader(subset="dev", config=gcn_roberta_config, batch_size=32, shuffle=False)
         float_pred = []
         predictions = []
         truths = []
@@ -40,8 +22,8 @@ def eval_gcn_roberta(model):
             pred = model(sample, return_loss=False)
             float_pred.append(pred)
             predictions.append(torch.round(pred))
-        f1_macro = f1_score_macro(torch.cat(truths, dim=-1).cpu().detach(),
-                                  torch.cat(float_pred, dim=-1).cpu().detach())
+        f1_macro = f1_score_macro(torch.cat(float_pred, dim=-1).cpu().detach(),
+                                  torch.cat(truths, dim=-1).cpu().detach())
         predictions = torch.cat(predictions, dim=-1).int().cpu().detach().numpy()
         truths = torch.cat(truths, dim=-1).detach().numpy()
         acc = accuracy_score(truths, predictions)
@@ -50,6 +32,8 @@ def eval_gcn_roberta(model):
 
 
 def train_gcn_roberta(config=gcn_roberta_config):
+    # set seed
+    seed_everything(config.DownStream.seed)
     device = config.device
     # load training parameters
     learning_rate = config.DownStream.learning_rate
@@ -64,7 +48,6 @@ def train_gcn_roberta(config=gcn_roberta_config):
 
     # init dataloader
     train_dataloader = complete_dataloader(subset="train", config=config, batch_size=batch_size)
-    # train_dataloader = simple_dataloader(subset="train", config=config, batch_size=batch_size, shuffle=True)
 
     # weight decay
     no_decay = ["bias", "LayerNorm.weight"]
@@ -124,7 +107,6 @@ def test_gcn_roberta(load_epoch, config=gcn_roberta_config):
     with torch.no_grad():
         model.eval()
         test_dataloader = complete_dataloader(subset="test", config=config, batch_size=32)
-        # test_dataloader = simple_dataloader(subset="test", config=config, batch_size=32, shuffle=False)
         predictions = []
         utt_ids = []
         bar = tqdm(test_dataloader)

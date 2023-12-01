@@ -5,6 +5,7 @@ from modules.decoder import BaseClassifier
 from transformers import AutoModel
 from transformers import RobertaTokenizer
 from configs import naive_roberta_config as base_config
+from modules.loss import f1_loss
 
 
 class NaiveRoBERTa(nn.Module):
@@ -25,7 +26,7 @@ class NaiveRoBERTa(nn.Module):
                                       hidden_size=hidden_size,
                                       output_size=self.config.DownStream.output_size)
 
-        self.criterion = nn.BCELoss()
+        self.criterion = f1_loss
 
     def encode(self, texts):
         tokens = self.tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
