@@ -11,28 +11,19 @@ class Path:
 
 class Model:
     bert_embsize = 768
-
-    gru = False
-    gru_layers = 2
-    gru_bidirect = True
-
-    n_speakers = 4
-    n_relations = 16
-    rgcn_reg_basis = 30
-
-    temperature = 0.5
-
     dropout = 0.5
-
-    gcn = True
-    speaker_embedding = False
+    gat_heads = 8
+    edge_fea = 128
+    ll_hidden_size = 64
+    temperature = 0.5
+    n_relations = 16
 
 
 class DownStream:
     custom_sampler = True
     seed = 64
     output_size = 1  # 1 for binary classification
-    batch_size = 64
+    batch_size = 8
     dev_train_ratio = 0.1
     learning_rate = 1e-6
     warm_up = 1

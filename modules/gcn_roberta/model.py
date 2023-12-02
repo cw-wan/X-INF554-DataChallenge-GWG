@@ -1,5 +1,4 @@
 from torch import nn
-import torch.nn.functional as F
 import torch
 import os
 from torch_geometric.nn.conv import RGCNConv, GraphConv
@@ -53,9 +52,9 @@ class GCNRoBERTa(nn.Module):
                 out_channels=self.embedding_size)
 
         # MLP Classifier
-        hidden_size = [int(self.embedding_size / 4), ]
+        hidden_size = [int(self.embedding_size / 2), int(self.embedding_size / 4), ]
         self.decoder = BaseClassifier(
-            input_size=self.embedding_size,
+            input_size=self.embedding_size * 2,
             hidden_size=hidden_size,
             output_size=self.config.DownStream.output_size)
 
@@ -72,7 +71,6 @@ class GCNRoBERTa(nn.Module):
     def forward(self, sample, return_loss=True):
         text = sample["text"]
         spk = sample["speaker"].to(self.device)
-        # transform edges to edge_index type
         edge_index = sample["edge_index"].to(self.device)
         edge_type = sample["edge_type"].to(self.device)
         # take [CLS] of RoBERTa output as the embedding of each utterance
@@ -86,10 +84,10 @@ class GCNRoBERTa(nn.Module):
             utt_emb, _ = self.gru(utt_emb)
         # compute graph embeddings
         if self.config.Model.gcn:
+            utt_emb_before_gcn = utt_emb
             utt_emb = self.conv1(utt_emb, edge_index, edge_type)
-            utt_emb = F.relu(utt_emb)
-            utt_emb = F.dropout(utt_emb, training=self.training)
             utt_emb = self.conv2(x=utt_emb, edge_index=edge_index)
+            utt_emb = torch.cat((utt_emb_before_gcn, utt_emb), 1)
         # make classification based on utterance embeddings
         pred = self.decoder(utt_emb).squeeze(1)
         if return_loss:
