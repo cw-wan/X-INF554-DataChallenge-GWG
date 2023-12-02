@@ -23,7 +23,7 @@ class DownStream:
     custom_sampler = True
     seed = 64
     output_size = 1  # 1 for binary classification
-    batch_size = 8
+    batch_size = 64
     dev_train_ratio = 0.1
     learning_rate = 1e-6
     warm_up = 1
