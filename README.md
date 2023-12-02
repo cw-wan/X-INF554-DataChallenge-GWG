@@ -4,7 +4,8 @@
 
 1. Download data to `data/`
 2. Download [RoBERTa](https://huggingface.co/roberta-base) to `modules/roberta-base`. 
-3. For training and testing, run command `python main.py -s [model] -m [mode] [-e [checkpoint_epoch]]`.
+3. For training, run command `python main.py -s [model] -m train`.
+4. To generate output csv file, run command `python main.py -s [model] -m test -e [checkpoint_epoch]`
 
 ## Model list
 
