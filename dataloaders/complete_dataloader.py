@@ -16,6 +16,13 @@ MAP_SPEAKERS = {
     "ID": 0, "UI": 1, "ME": 2, "PM": 3
 }
 
+MAP_SPEAKER_TURN = {}
+
+for spk_1 in MAP_SPEAKERS.values():
+    for spk_2 in MAP_SPEAKERS.values():
+        MAP_SPEAKER_TURN[str(spk_1) + "_" + str(spk_2) + "_P"] = len(MAP_SPEAKER_TURN)
+        MAP_SPEAKER_TURN[str(spk_1) + "_" + str(spk_2) + "_F"] = len(MAP_SPEAKER_TURN)
+
 
 def graph_search(n, mat, size):
     output = []
@@ -70,28 +77,6 @@ def read_dialogues(path):
     return utterances, dialogues
 
 
-def collate_fn(data):
-    edges = []
-    edge_types = []
-    uid = [d["id"] for d in data]
-    uid2idx = {}
-    for p in list(zip(uid, np.arange(len(uid)))):
-        uid2idx[p[0]] = p[1]
-    for d in data:
-        for adj in d["adj_list"]:
-            if adj[0] in uid:
-                edges.append([uid2idx[d["id"]], uid2idx[adj[0]]])
-                edge_types.append(adj[1])
-    return {
-        "id": [d["id"] for d in data],
-        "text": [d["text"] for d in data],
-        "speaker": torch.tensor([d["speaker"] for d in data]),
-        "label": torch.tensor([d["label"] for d in data]),
-        "edge_index": torch.tensor(edges).transpose(0, 1).type(torch.int64),
-        "edge_type": torch.tensor(edge_types)
-    }
-
-
 class CompleteDataset(Dataset):
     def __init__(self,
                  split,
@@ -105,6 +90,7 @@ class CompleteDataset(Dataset):
         self.positive_idx = []
         self.negative_idx = []
         self.uid2idx = {}
+        self.config = config
 
         if split in ["train", "dev"]:
             # read training dialogues
@@ -149,6 +135,43 @@ class CompleteDataset(Dataset):
         else:
             # Handling a single index
             return self.data[index]
+
+    def collate_fn(self, data):
+        # construct discourse graph
+        edges = []
+        edge_types = []
+        uid = [d["id"] for d in data]
+        spk = [d["speaker"] for d in data]
+        uid2idx = {}
+        for p in list(zip(uid, np.arange(len(uid)))):
+            uid2idx[p[0]] = p[1]
+        for d in data:
+            for adj in d["adj_list"]:
+                if adj[0] in uid:
+                    edges.append([uid2idx[d["id"]], uid2idx[adj[0]]])
+                    edge_types.append(adj[1])
+        # construct DialogueGCN graph
+        edges_2 = []
+        edge_types_2 = []
+        for i in range(len(data)):
+            for j in range(max(0, i - self.config.Model.context_window),
+                           min(len(data), i + self.config.Model.context_window)):
+                if i != j:
+                    edges_2.append([i, j])
+                    if i < j:
+                        edge_types_2.append(MAP_SPEAKER_TURN[str(spk[i]) + "_" + str(spk[j]) + "_F"])
+                    else:
+                        edge_types_2.append(MAP_SPEAKER_TURN[str(spk[i]) + "_" + str(spk[j]) + "_P"])
+        return {
+            "id": [d["id"] for d in data],
+            "text": [d["text"] for d in data],
+            "speaker": torch.tensor([d["speaker"] for d in data]),
+            "label": torch.tensor([d["label"] for d in data]),
+            "edge_index": torch.tensor(edges).transpose(0, 1).type(torch.int64),
+            "edge_type": torch.tensor(edge_types),
+            "edge_index_2": torch.tensor(edges_2).transpose(0, 1).type(torch.int64),
+            "edge_type_2": torch.tensor(edge_types_2)
+        }
 
     def pos_indices(self):
         return self.positive_idx
@@ -228,6 +251,6 @@ def complete_dataloader(subset, config, batch_size, custom_sampler=False):
                                 pos_indices=dataset.pos_indices(),
                                 neg_indices=dataset.neg_indices(),
                                 batch_size=batch_size)
-        return DataLoader(dataset, batch_size=None, sampler=sampler, collate_fn=collate_fn)
+        return DataLoader(dataset, batch_size=None, sampler=sampler, collate_fn=dataset.collate_fn)
     else:
-        return DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=dataset.collate_fn)

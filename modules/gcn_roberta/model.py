@@ -41,11 +41,16 @@ class GCNRoBERTa(nn.Module):
         self.embedding_size = self.config.Model.bert_embsize
 
         # GCN
+        n_relations = 0
+        if config.Model.graph_type == 1:
+            n_relations = 16
+        elif config.Model.graph_type == 2:
+            n_relations = 32
         if self.config.Model.gcn:
             self.conv1 = RGCNConv(
                 in_channels=self.embedding_size,
                 out_channels=self.embedding_size,
-                num_relations=self.config.Model.n_relations,
+                num_relations=n_relations,
                 num_bases=self.config.Model.rgcn_reg_basis)
             self.conv2 = GraphConv(
                 in_channels=self.embedding_size,
@@ -71,8 +76,14 @@ class GCNRoBERTa(nn.Module):
     def forward(self, sample, return_loss=True):
         text = sample["text"]
         spk = sample["speaker"].to(self.device)
-        edge_index = sample["edge_index"].to(self.device)
-        edge_type = sample["edge_type"].to(self.device)
+        edge_index = None
+        edge_type = None
+        if self.config.Model.graph_type == 1:
+            edge_index = sample["edge_index"].to(self.device)
+            edge_type = sample["edge_type"].to(self.device)
+        elif self.config.Model.graph_type == 2:
+            edge_index = sample["edge_index_2"].to(self.device)
+            edge_type = sample["edge_type_2"].to(self.device)
         # take [CLS] of RoBERTa output as the embedding of each utterance
         utt_emb = self.encode(text)
         # incorporating speaker information with speaker embedding

@@ -59,7 +59,12 @@ class GATRoBERTa(nn.Module):
         self.embedding_size = self.config.Model.bert_embsize
 
         # Graph Attention Blocks
-        self.edge_fea_emb = nn.Embedding(self.config.Model.n_relations, self.config.Model.edge_fea)
+        n_relations = 0
+        if config.Model.graph_type == 1:
+            n_relations = 16
+        elif config.Model.graph_type == 2:
+            n_relations = 32
+        self.edge_fea_emb = nn.Embedding(n_relations, self.config.Model.edge_fea)
         self.conv1 = GATBlock(emb_size=self.embedding_size,
                               ll_hidden_size=self.config.Model.ll_hidden_size,
                               att_heads=self.config.Model.gat_heads,
@@ -88,8 +93,14 @@ class GATRoBERTa(nn.Module):
 
     def forward(self, sample, return_loss=True):
         text = sample["text"]
-        edge_index = sample["edge_index"].to(self.device)
-        edge_type = sample["edge_type"].to(self.device)
+        edge_index = None
+        edge_type = None
+        if self.config.Model.graph_type == 1:
+            edge_index = sample["edge_index"].to(self.device)
+            edge_type = sample["edge_type"].to(self.device)
+        elif self.config.Model.graph_type == 2:
+            edge_index = sample["edge_index_2"].to(self.device)
+            edge_type = sample["edge_type_2"].to(self.device)
         edge_fea = self.edge_fea_emb(edge_type)
         # take [CLS] of RoBERTa output as the embedding of each utterance
         utt_emb = self.encode(text)

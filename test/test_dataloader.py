@@ -1,24 +1,35 @@
-from dataloaders.complete_dataloader import complete_dataloader
+from dataloaders.complete_dataloader import complete_dataloader, MAP_SPEAKER_TURN
 from configs import gcn_roberta_config
 from tqdm import tqdm
 import os
 
+print(MAP_SPEAKER_TURN)
+
 os.chdir("../")
 
-train = complete_dataloader(subset="train", config=gcn_roberta_config, batch_size=64, custom_sampler=True)
-train_normal = complete_dataloader(subset="train", config=gcn_roberta_config, batch_size=32)
+dev = complete_dataloader(subset="dev", config=gcn_roberta_config, batch_size=64)
 
-bar = tqdm(train)
+bar = tqdm(dev)
 
-positive = 0
-allcnt = 0
+positive_utts = []
+negative_utts = []
 
 for i, sample in enumerate(bar):
-    allcnt += len(sample["id"])
-    positive += sum(sample["label"])
+    pids = []
+    for _id, l in enumerate(sample["label"]):
+        if l == 1:
+            pids.append(_id)
+    for _id, t in enumerate(sample["text"]):
+        if _id in pids:
+            positive_utts.append(t)
+        else:
+            negative_utts.append(t)
 
-print("Proportion of positive with custom sampler: {}".format(positive / allcnt))
-
+with open("positive_samples.txt", 'a') as f:
+    f.writelines("\n".join(positive_utts))
+with open("negative_samples.txt", 'a') as f:
+    f.writelines("\n".join(negative_utts))
+"""
 bar = tqdm(train_normal)
 
 positive = 0
@@ -29,3 +40,4 @@ for i, sample in enumerate(bar):
     positive += sum(sample["label"])
 
 print("Proportion of positive without custom sampler: {}".format(positive / allcnt))
+"""
