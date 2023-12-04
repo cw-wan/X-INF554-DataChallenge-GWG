@@ -1,6 +1,7 @@
 from utils.training_naive_roberta import train_naive_roberta, test_naive_roberta
 from utils.training_gcn_roberta import train_gcn_roberta, test_gcn_roberta
 from utils.training_gat_roberta import train_gat_roberta, test_gat_roberta
+from utils.training_dual_gats import train_dual, test_dual
 
 MODELS = {
     "naive-roberta": {
@@ -14,5 +15,9 @@ MODELS = {
     "gat-roberta": {
         "train": train_gat_roberta,
         "test": test_gat_roberta
+    },
+    "dual-gats": {
+        "train": train_dual,
+        "test": test_dual
     }
 }
