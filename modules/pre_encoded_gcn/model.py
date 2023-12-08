@@ -34,6 +34,7 @@ class PreEncodedGCN(nn.Module):
 
         self.embedding_size = self.config.Model.utt_size
 
+        # Projection layer for dim reduction - OPTIONAL
         if self.config.Model.shrink_before_gcn:
             shrink_list = []
             shrink_list.append(nn.Linear(self.config.Model.utt_size, self.config.Model.shrink_output_size))
@@ -41,7 +42,7 @@ class PreEncodedGCN(nn.Module):
             self.shrink = nn.Sequential(*shrink_list)
             self.embedding_size = self.config.Model.shrink_output_size
 
-        # GCN
+        # GCN, relation types depend on the graph type: utterance dependency or speaker turn
         n_relations = 0
         if config.Model.graph_type == 1:
             n_relations = 16
