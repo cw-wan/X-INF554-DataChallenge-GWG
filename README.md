@@ -1,5 +1,7 @@
 # X-INF554 Kaggle Data Challenge
 
+Data challenge held by [LIX, École polytechnique](https://www.lix.polytechnique.fr), as the final project of course INF554 - Apprentissage Automatique et Profond (2023-2024).
+
 Topic: [Extractive Summarization with Discourse Graphs](https://www.kaggle.com/competitions/inf554-extractive-summarization-2023/overview)
 
 Team: GWG
