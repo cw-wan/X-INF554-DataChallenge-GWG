@@ -27,7 +27,8 @@ For testing and producing the output file:
 python main.py -s pre-encoded-gcn -m test
 ```
 
-The model will firstly be trained on the whole training data and then make predictions on the test set.
+The model will firstly be trained on the whole training data and then make predictions on the test set. The output file
+can be found under `/output`.
 
 ## How to tune RoBERTa-large
 
@@ -42,7 +43,8 @@ Run the following command to perform cross-validation (optional):
 python main.py -m tune
 ```
 
-Run the following command to tune RoBERTa-large for specified epochs (8 for example) and compute utterance embeddings save as binary
+Run the following command to tune RoBERTa-large for specified epochs (8 for example) and compute utterance embeddings
+save as binary
 packages:
 
 ```bash
