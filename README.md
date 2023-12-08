@@ -4,7 +4,7 @@ Topic: [Extractive Summarization with Discourse Graphs](https://www.kaggle.com/c
 
 Team: GWG
 
-Members: Chenwei WAN, Xianjin GONG, Mengfei GAO
+Members: Chenwei WAN (DATAAI), Xianjin GONG (IGD), Mengfei GAO (IGD)
 
 Our final ranking: 5/65
 
