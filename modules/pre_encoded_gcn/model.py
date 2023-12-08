@@ -23,7 +23,7 @@ class PreEncodedGCN(nn.Module):
                 num_embeddings=self.config.Model.n_speakers,
                 embedding_dim=self.config.Model.speaker_embedding_size)
 
-        # GRU
+        # GRU - OPTIONAL
         if self.config.Model.gru:
             self.gru = nn.GRU(
                 input_size=self.config.Model.bert_embsize,
