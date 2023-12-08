@@ -6,6 +6,7 @@ import os
 import random
 from queue import Queue
 import pickle
+import configs.pre_encoded_gcn_config as base_config
 
 MAP_RELATIONS = {
     "Elaboration": 0, "Question-answer_pair": 1, "Correction": 2, "Contrast": 3, "Background": 4, "Explanation": 5,
@@ -21,8 +22,7 @@ MAP_SPEAKER_TURN = {}
 
 for spk_1 in MAP_SPEAKERS.values():
     for spk_2 in MAP_SPEAKERS.values():
-        for dialogue_relation in MAP_RELATIONS.keys():
-            MAP_SPEAKER_TURN[str(spk_1) + "_" + str(spk_2) + "_" + dialogue_relation] = len(MAP_SPEAKER_TURN)
+        MAP_SPEAKER_TURN[str(spk_1) + "_" + str(spk_2)] = len(MAP_SPEAKER_TURN)
 
 
 def graph_search(n, mat, size):
@@ -79,11 +79,10 @@ def read_dialogues(dialogue_path, encoding_path, config):
                         if config.Model.speaker_relation:
                             spk_1 = utterances[uid1]["speaker"]
                             spk_2 = utterances[uid2]["speaker"]
-                            speaker_relation = MAP_SPEAKER_TURN[str(spk_1) + "_" + str(spk_2) + "_" + r]
-                            utterances[uid1]["adj_list"].append((uid2, speaker_relation))
+                            speaker_relation = MAP_SPEAKER_TURN[str(spk_1) + "_" + str(spk_2)]
+                            utterances[uid1]["adj_list"].append((uid2, MAP_RELATIONS[r], speaker_relation))
                         else:
                             utterances[uid1]["adj_list"].append((uid2, MAP_RELATIONS[r]))
-                        # utterances[uid2]["adj_list"].append((uid1, MAP_RELATIONS[r]))
                         dialogues[dialogue_id]["adj_matrix"][int(u1), int(u2)] = 1
                         dialogues[dialogue_id]["adj_matrix"][int(u2), int(u1)] = 1
 
@@ -96,6 +95,7 @@ def read_dialogues(dialogue_path, encoding_path, config):
 def collate_fn(data):
     edges = []
     edge_types = []
+    edge_speaker_types = []
     uid = [d["id"] for d in data]
     uid2idx = {}
     encoding = []
@@ -107,15 +107,29 @@ def collate_fn(data):
             if adj[0] in uid:
                 edges.append([uid2idx[d["id"]], uid2idx[adj[0]]])
                 edge_types.append(adj[1])
-    return {
-        "id": [d["id"] for d in data],
-        "text": [d["text"] for d in data],
-        "speaker": torch.tensor([d["speaker"] for d in data]),
-        "label": torch.tensor([d["label"] for d in data]),
-        "edge_index": torch.tensor(edges).transpose(0, 1).type(torch.int64),
-        "edge_type": torch.tensor(edge_types),
-        "encoding": torch.tensor(encoding)
-    }
+                if base_config.Model.speaker_relation:
+                    edge_speaker_types.append(adj[2])
+    if base_config.Model.speaker_relation:
+        return {
+            "id": [d["id"] for d in data],
+            "text": [d["text"] for d in data],
+            "speaker": torch.tensor([d["speaker"] for d in data]),
+            "label": torch.tensor([d["label"] for d in data]),
+            "edge_index": torch.tensor(edges).transpose(0, 1).type(torch.int64),
+            "edge_type": torch.tensor(edge_types),
+            "edge_speaker_type": torch.tensor(edge_speaker_types),
+            "encoding": torch.tensor(encoding)
+        }
+    else:
+        return {
+            "id": [d["id"] for d in data],
+            "text": [d["text"] for d in data],
+            "speaker": torch.tensor([d["speaker"] for d in data]),
+            "label": torch.tensor([d["label"] for d in data]),
+            "edge_index": torch.tensor(edges).transpose(0, 1).type(torch.int64),
+            "edge_type": torch.tensor(edge_types),
+            "encoding": torch.tensor(encoding)
+        }
 
 
 class PreEncodedDataset(Dataset):

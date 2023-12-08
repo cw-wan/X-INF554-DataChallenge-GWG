@@ -23,18 +23,9 @@ class PreEncodedGCN(nn.Module):
                 num_embeddings=self.config.Model.n_speakers,
                 embedding_dim=self.config.Model.speaker_embedding_size)
 
-        # GRU - OPTIONAL
-        if self.config.Model.gru:
-            self.gru = nn.GRU(
-                input_size=self.config.Model.bert_embsize,
-                hidden_size=self.config.Model.bert_embsize // 2 if self.config.Model.gru_bidirect else self.config.Model.bert_embsize,
-                num_layers=self.config.Model.gru_layers,
-                bidirectional=self.config.Model.gru_bidirect,
-                dropout=self.config.Model.dropout)
-
         self.embedding_size = self.config.Model.utt_size
 
-        # Projection layer for dim reduction - OPTIONAL
+        # Projector for dim reduction - OPTIONAL
         if self.config.Model.shrink_before_gcn:
             shrink_list = []
             shrink_list.append(nn.Linear(self.config.Model.utt_size, self.config.Model.shrink_output_size))
@@ -42,28 +33,34 @@ class PreEncodedGCN(nn.Module):
             self.shrink = nn.Sequential(*shrink_list)
             self.embedding_size = self.config.Model.shrink_output_size
 
-        # GCN, relation types depend on the graph type: utterance dependency or speaker turn
-        n_relations = 0
-        if config.Model.graph_type == 1:
-            n_relations = 16
-        elif config.Model.graph_type == 2:
-            n_relations = 32
-        if config.Model.speaker_relation:
-            n_relations = n_relations * config.Model.n_speakers * config.Model.n_speakers
         if self.config.Model.gcn:
+            # GCN for learning dialogue dependencies
             self.conv1 = RGCNConv(
                 in_channels=self.embedding_size,
                 out_channels=self.embedding_size,
-                num_relations=n_relations,
+                num_relations=16,
                 num_bases=self.config.Model.rgcn_reg_basis)
             self.conv2 = GraphConv(
                 in_channels=self.embedding_size,
                 out_channels=self.embedding_size)
 
+            # Additional GCN Layers for speaker turn learning - OPTIONAL
+            self.conv3 = RGCNConv(
+                in_channels=self.embedding_size,
+                out_channels=self.embedding_size,
+                num_relations=config.Model.n_speakers * config.Model.n_speakers,
+                num_bases=self.config.Model.rgcn_reg_basis)
+            self.conv4 = GraphConv(
+                in_channels=self.embedding_size,
+                out_channels=self.embedding_size)
+
         # MLP Classifier
+        MLP_input_size = self.embedding_size * 2
+        if self.config.Model.speaker_relation:
+            MLP_input_size = self.embedding_size * 3
         hidden_size = [int(self.embedding_size / 2), int(self.embedding_size / 4), ]
         self.decoder = BaseClassifier(
-            input_size=self.embedding_size * 2,
+            input_size=MLP_input_size,
             hidden_size=hidden_size,
             output_size=self.config.DownStream.output_size)
 
@@ -72,33 +69,34 @@ class PreEncodedGCN(nn.Module):
         self.info_nce = NTXentLoss(temperature=self.config.Model.temperature)
 
     def forward(self, sample, return_loss=True):
-        text = sample["text"]
         spk = sample["speaker"].to(self.device)
-        edge_index = None
-        edge_type = None
-        if self.config.Model.graph_type == 1:
-            edge_index = sample["edge_index"].to(self.device)
-            edge_type = sample["edge_type"].to(self.device)
-        elif self.config.Model.graph_type == 2:
-            edge_index = sample["edge_index_2"].to(self.device)
-            edge_type = sample["edge_type_2"].to(self.device)
+        edge_speaker_type = None
+        edge_index = sample["edge_index"].to(self.device)
+        edge_type = sample["edge_type"].to(self.device)
+        if self.config.Model.speaker_relation:
+            edge_speaker_type = sample["edge_speaker_type"].to(self.device)
         # take [CLS] of RoBERTa output as the embedding of each utterance
         utt_emb = sample["encoding"].to(self.device)
         # incorporating speaker information with speaker embedding
+        utt_emb_before_gcn = utt_emb
         if self.config.Model.speaker_embedding:
             speaker_emb = self.spk_emb(spk)
-            utt_emb = torch.cat((utt_emb, speaker_emb), 1)
+            # Linear Addition
+            utt_emb = utt_emb + speaker_emb
         if self.config.Model.shrink_before_gcn:
             utt_emb = self.shrink(utt_emb)
-        # using GRU to obtain context information
-        if self.config.Model.gru:
-            utt_emb, _ = self.gru(utt_emb)
         # compute graph embeddings
         if self.config.Model.gcn:
-            utt_emb_before_gcn = utt_emb
-            utt_emb = self.conv1(utt_emb, edge_index, edge_type)
-            utt_emb = self.conv2(x=utt_emb, edge_index=edge_index)
-            utt_emb = torch.cat((utt_emb_before_gcn, utt_emb), 1)
+            # utt_emb_before_gcn = utt_emb
+            utt_emb_1 = self.conv1(utt_emb, edge_index, edge_type)
+            utt_emb_1 = self.conv2(x=utt_emb_1, edge_index=edge_index)
+
+            if self.config.Model.speaker_relation:
+                utt_emb_2 = self.conv3(utt_emb, edge_index, edge_speaker_type)
+                utt_emb_2 = self.conv4(x=utt_emb_2, edge_index=edge_index)
+                utt_emb = torch.cat((utt_emb_before_gcn, utt_emb_1, utt_emb_2), 1)
+            else:
+                utt_emb = torch.cat((utt_emb_before_gcn, utt_emb_1), 1)
         # make classification based on utterance embeddings
         pred = self.decoder(utt_emb).squeeze(1)
         if return_loss:

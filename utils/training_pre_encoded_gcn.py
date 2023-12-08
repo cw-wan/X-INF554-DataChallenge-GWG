@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score, f1_score
 from utils.training_utils import f1_score_macro, seed_everything
 
 
-def eval_pre_encoded_gcn(model, config, dev_idx):
+def eval_pre_encoded_gcn(model, config, dev_idx, log_wrong_pred=False):
     with torch.no_grad():
         model.eval()
         eval_dataset = pre_encoded_dataloader(subset="dev", config=config, batch_size=config.DownStream.batch_size,
@@ -18,16 +18,30 @@ def eval_pre_encoded_gcn(model, config, dev_idx):
         float_pred = []
         predictions = []
         truths = []
+        uid = []
         bar = tqdm(eval_dataset)
         for index, sample in enumerate(bar):
             truths.append(sample["label"])
             pred = model(sample, return_loss=False)
             float_pred.append(pred)
             predictions.append(torch.round(pred))
+            uid.append(sample["id"])
         f1_macro = f1_score_macro(torch.cat(float_pred, dim=-1).cpu().detach(),
                                   torch.cat(truths, dim=-1).cpu().detach())
         predictions = torch.cat(predictions, dim=-1).int().cpu().detach().numpy()
         truths = torch.cat(truths, dim=-1).detach().numpy()
+        if log_wrong_pred:
+            write_log("--------------------------------------------", path=model.name + '_error_pred.log')
+            utterance_id = [item for sublist in uid for item in sublist]
+            wrong_count = 0
+            for i in range(truths.shape[0]):
+                if abs(truths[i] - predictions[i]) > 1e-5:
+                    write_log(utterance_id[i], path=model.name + '_error_pred.log')
+                    wrong_count = wrong_count + 1
+            accuracy_by_count = wrong_count / truths.shape[0]
+            log = "Acc by count: {}".format(accuracy_by_count)
+            write_log(log, path=model.name + '_error_pred.log')
+            write_log("--------------------------------------------", path=model.name + '_error_pred.log')
         acc = accuracy_score(truths, predictions)
         f1 = f1_score(truths, predictions)
     return acc, f1, f1_macro
@@ -102,7 +116,8 @@ def train_pre_encoded_gcn(config=pre_encoded_gcn_config):
                 optimizer.step()
                 scheduler.step()
             # evaluate
-            acc, f1, f1_macro = eval_pre_encoded_gcn(model, config, dev_idx=dev_idx)
+            log_wrong_pred = epoch == total_epoch
+            acc, f1, f1_macro = eval_pre_encoded_gcn(model, config, dev_idx=dev_idx, log_wrong_pred=log_wrong_pred)
             current_dev_f1_macro = max(current_dev_f1_macro, f1_macro)
             log = "Epoch {}, Accuracy {}, F1 Score {}, F1 Macro Score {}, Dev_set Index {}/{}".format(epoch, acc, f1,
                                                                                                       f1_macro,
@@ -121,7 +136,7 @@ def train_pre_encoded_gcn(config=pre_encoded_gcn_config):
     write_log(log, path=model.name + '_train.log')
 
 
-def test_pre_encoded_gcn(load_epoch, config=pre_encoded_gcn_config):
+def test_pre_encoded_gcn(config=pre_encoded_gcn_config):
     # set seed
     seed_everything(config.DownStream.seed)
     device = config.device
@@ -193,7 +208,7 @@ def test_pre_encoded_gcn(load_epoch, config=pre_encoded_gcn_config):
         # write to submission file
         if not os.path.exists("output/"):
             os.mkdir("output/")
-        file = open("output/submission_gcn_roberta_epoch" + ".csv", "w")
+        file = open("output/submission_gcn_roberta.csv", "w")
         file.write("id,target_feature\n")
         for row in zip(utt_ids, predictions):
             file.write(",".join(row))

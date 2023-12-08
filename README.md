@@ -4,6 +4,18 @@ Team: GWG
 
 Members: Chenwei WAN, Xianjin GONG, Mengfei GAO
 
+## How to run interactive dialogue graph visualization
+
+Make sure the raw data is placed under `/data`
+
+Simply run command:
+
+```bash
+streamlit run graph.py
+```
+
+![img.png](viz.png)
+
 ## How to use with pre-computed embeddings
 
 Download utterance embeddings pre-computed by our tuned RoBERTa-large model:
