@@ -42,9 +42,9 @@ Run the following command to perform cross-validation (optional):
 python main.py -m tune
 ```
 
-Run the following command to tune RoBERTa-large for specified epochs and compute utterance embeddings save as binary
+Run the following command to tune RoBERTa-large for specified epochs (8 for example) and compute utterance embeddings save as binary
 packages:
 
 ```bash
-python main.py -m compute -e [epochs-to-tune]
+python main.py -m compute -e 8
 ```

@@ -22,7 +22,7 @@ class Model:
 
     gcn = True
     rgcn_reg_basis = 30
-    graph_type = 1  # 1: discourse graph 2: DialogueGCN graph
+    graph_type = 1  # 1: discourse graph 2: speaker turn graph
     context_window = 8
 
     speaker_embedding = False
