@@ -31,7 +31,7 @@ The model will firstly be trained on the whole training data and then make predi
 
 ## How to tune RoBERTa-large
 
-Put raw data under `data/`.
+Put raw data including utterances, graph edges and training labels under `data/`.
 
 Download [RoBERTa-large](https://huggingface.co/roberta-large/tree/main) and put the files
 under `modules/roberta-large`.
