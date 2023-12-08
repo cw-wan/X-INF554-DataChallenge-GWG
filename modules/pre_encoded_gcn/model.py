@@ -2,32 +2,26 @@ from torch import nn
 import torch
 import os
 from torch_geometric.nn.conv import RGCNConv, GraphConv
-from transformers import AutoModel
-from transformers import RobertaTokenizer
 from modules.decoder import BaseClassifier
-from configs import gcn_roberta_config as base_config
+from configs import pre_encoded_gcn_config as base_config
 from modules.loss import f1_loss
 from pytorch_metric_learning.losses import NTXentLoss
 
 
-class GCNRoBERTa(nn.Module):
+class PreEncodedGCN(nn.Module):
     def __init__(self,
                  config=base_config):
-        super(GCNRoBERTa, self).__init__()
+        super(PreEncodedGCN, self).__init__()
 
         self.config = config
         self.device = self.config.device
-        self.name = "gcn_roberta"
-
-        # RoBERTa Model
-        self.tokenizer = RobertaTokenizer.from_pretrained(self.config.Path.roberta, local_files_only=True)
-        self.encoder = AutoModel.from_pretrained(self.config.Path.roberta, local_files_only=True)
+        self.name = "pre_encoded_gcn"
 
         # Speaker embedding layer
         if self.config.Model.speaker_embedding:
             self.spk_emb = nn.Embedding(
                 num_embeddings=self.config.Model.n_speakers,
-                embedding_dim=self.config.Model.bert_embsize)
+                embedding_dim=self.config.Model.speaker_embedding_size)
 
         # GRU
         if self.config.Model.gru:
@@ -38,7 +32,14 @@ class GCNRoBERTa(nn.Module):
                 bidirectional=self.config.Model.gru_bidirect,
                 dropout=self.config.Model.dropout)
 
-        self.embedding_size = self.config.Model.bert_embsize
+        self.embedding_size = self.config.Model.utt_size
+
+        if self.config.Model.shrink_before_gcn:
+            shrink_list = []
+            shrink_list.append(nn.Linear(self.config.Model.utt_size, self.config.Model.shrink_output_size))
+            shrink_list.append(nn.GELU())
+            self.shrink = nn.Sequential(*shrink_list)
+            self.embedding_size = self.config.Model.shrink_output_size
 
         # GCN
         n_relations = 0
@@ -46,6 +47,8 @@ class GCNRoBERTa(nn.Module):
             n_relations = 16
         elif config.Model.graph_type == 2:
             n_relations = 32
+        if config.Model.speaker_relation:
+            n_relations = n_relations * config.Model.n_speakers * config.Model.n_speakers
         if self.config.Model.gcn:
             self.conv1 = RGCNConv(
                 in_channels=self.embedding_size,
@@ -67,12 +70,6 @@ class GCNRoBERTa(nn.Module):
         self.criterion = f1_loss
         self.info_nce = NTXentLoss(temperature=self.config.Model.temperature)
 
-    def encode(self, texts):
-        tokens = self.tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
-        embeddings = self.encoder(input_ids=tokens["input_ids"].to(self.device),
-                                  attention_mask=tokens["attention_mask"].to(self.device))["last_hidden_state"]
-        return embeddings[:, 0]
-
     def forward(self, sample, return_loss=True):
         text = sample["text"]
         spk = sample["speaker"].to(self.device)
@@ -85,11 +82,13 @@ class GCNRoBERTa(nn.Module):
             edge_index = sample["edge_index_2"].to(self.device)
             edge_type = sample["edge_type_2"].to(self.device)
         # take [CLS] of RoBERTa output as the embedding of each utterance
-        utt_emb = self.encode(text)
+        utt_emb = sample["encoding"].to(self.device)
         # incorporating speaker information with speaker embedding
         if self.config.Model.speaker_embedding:
             speaker_emb = self.spk_emb(spk)
-            utt_emb = utt_emb + speaker_emb
+            utt_emb = torch.cat((utt_emb, speaker_emb), 1)
+        if self.config.Model.shrink_before_gcn:
+            utt_emb = self.shrink(utt_emb)
         # using GRU to obtain context information
         if self.config.Model.gru:
             utt_emb, _ = self.gru(utt_emb)

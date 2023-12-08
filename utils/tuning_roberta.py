@@ -200,7 +200,9 @@ def compute_embeddings(total_epoch, config=roberta_tuner_config):
             file.write("\n")
         file.close()
         # save as pkl file
-        with open("data/train-dev.pkl", 'wb') as f:
+        if not os.path.exists("data/encoding"):
+            os.mkdir("data/encoding")
+        with open("data/encoding/train-dev.pkl", 'wb') as f:
             pickle.dump(train_dev_embeddings, f)
-        with open("data/test.pkl", 'wb') as f:
+        with open("data//encoding/test.pkl", 'wb') as f:
             pickle.dump(test_embeddings, f)

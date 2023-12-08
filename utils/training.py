@@ -1,23 +1,8 @@
-from utils.training_naive_roberta import train_naive_roberta, test_naive_roberta
-from utils.training_gcn_roberta import train_gcn_roberta, test_gcn_roberta
-from utils.training_gat_roberta import train_gat_roberta, test_gat_roberta
-from utils.training_dual_gats import train_dual, test_dual
+from utils.training_pre_encoded_gcn import train_pre_encoded_gcn, test_pre_encoded_gcn
 
 MODELS = {
-    "naive-roberta": {
-        "train": train_naive_roberta,
-        "test": test_naive_roberta
-    },
-    "gcn-roberta": {
-        "train": train_gcn_roberta,
-        "test": test_gcn_roberta
-    },
-    "gat-roberta": {
-        "train": train_gat_roberta,
-        "test": test_gat_roberta
-    },
-    "dual-gats": {
-        "train": train_dual,
-        "test": test_dual
+    "pre-encoded-gcn": {
+        "train": train_pre_encoded_gcn,
+        "test": test_pre_encoded_gcn
     }
 }
