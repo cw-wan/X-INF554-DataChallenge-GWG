@@ -27,6 +27,8 @@ Download utterance embeddings pre-computed by our tuned RoBERTa-large model:
 
 Put these two `.pkl` files under `data/encoding`.
 
+For different ways of incorporating speaker information, see `configs/pre_encoded_gcn_config.py`.
+
 Run the following command for cross-validation:
 
 ```bash

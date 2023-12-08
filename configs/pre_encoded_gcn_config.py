@@ -18,18 +18,16 @@ class Model:
 
     gcn = True
     rgcn_reg_basis = 30
-    context_window = 8
 
     n_speakers = 4
     # Switching between two styles of incorporating speaker information:
     # 1. Speaker Embedding
     speaker_embedding = True
     speaker_embedding_size = 1024
-
     # 2. Additional GCN layers for speaker turn relations
     speaker_relation = True
 
-    # Whether to reduce the embedding dimension before feed into GCN layers
+    # Whether to reduce the embedding dimension before feeding into GCN layers
     shrink_before_gcn = False
     shrink_output_size = 300
 
