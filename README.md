@@ -1,8 +1,12 @@
 # X-INF554 Kaggle Data Challenge
 
+Topic: [Extractive Summarization with Discourse Graphs](https://www.kaggle.com/competitions/inf554-extractive-summarization-2023/overview)
+
 Team: GWG
 
 Members: Chenwei WAN, Xianjin GONG, Mengfei GAO
+
+Our final ranking: 5/65
 
 ## Before starting
 
@@ -10,7 +14,7 @@ Install required packages in `/requirements.txt`. We recommend to use PyTorch wi
 
 ## How to run interactive dialogue graph visualization
 
-Make sure the raw data is placed under `/data`
+Make sure the raw [data](https://www.kaggle.com/competitions/inf554-extractive-summarization-2023/data) is placed under `/data`
 
 Simply run command:
 
