@@ -4,6 +4,10 @@ Team: GWG
 
 Members: Chenwei WAN, Xianjin GONG, Mengfei GAO
 
+## Before starting
+
+Install required packages in `/requirements.txt`. We recommend to use PyTorch with Cuda.
+
 ## How to run interactive dialogue graph visualization
 
 Make sure the raw data is placed under `/data`
