@@ -12,7 +12,7 @@ Our final ranking: 5/65
 
 Read our [technical report](https://github.com/cw-wan/X-INF554-DataChallenge-GWG/blob/master/report.pdf)
 ![img.png](architecture2.png)
-![img.png](architecture.png)
+![img.png](architecture1.png)
 ## Before starting
 
 Install required packages in `/requirements.txt`. We recommend to use PyTorch with Cuda.
