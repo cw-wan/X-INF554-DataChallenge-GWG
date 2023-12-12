@@ -12,7 +12,10 @@ Our final ranking: 5/65
 
 Read our [technical report](https://github.com/cw-wan/X-INF554-DataChallenge-GWG/blob/master/report.pdf)
 
-![img.png](Network_Structure.png)
+![Network Architecture](Network_Structure.png)
+
+![Network Architecture2](Network_Structure2.png)
+
 ## Before starting
 
 Install required packages in `/requirements.txt`. We recommend to use PyTorch with Cuda.
