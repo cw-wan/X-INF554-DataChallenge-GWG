@@ -11,6 +11,7 @@ Members: Chenwei WAN (DATAAI), Xianjin GONG (IGD), Mengfei GAO (IGD)
 Our final ranking: 5/65
 
 Read our [technical report](https://github.com/cw-wan/X-INF554-DataChallenge-GWG/blob/master/report.pdf)
+
 ![img.png](Network_Structure.png)
 ## Before starting
 
